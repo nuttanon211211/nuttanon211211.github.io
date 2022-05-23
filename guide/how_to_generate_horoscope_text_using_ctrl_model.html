@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="">
+  <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+
+body {
+  background-position: center center;
+  background-attachment: fixed;
+  background-size: cover;
+}
+img {
+  border-radius: 8px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 50%;
+}
+}
+h1 {
+  color: blue;
+  font-family: verdana;
+  font-size: 300%;
+}
+p {
+  color: black;
+  font-family: courier;
+  font-size: 120%;
+}
+p.terminal {
+  background-color: black;
+  color: white;
+  border: 4px double green;
+  border-radius: 8px;
+
+}
+p.box {
+  background-color: lightgray;
+  border-radius: 8px;
+}
+p.blue {
+  color: midnightblue ;
+}
+
+p.first {
+  background-color: azure;
+  border-radius: 6px;
+}
+.highlight {
+  background-color: lightgray;
+  border-radius: 6px;
+}
+i.light {
+  background-color: lightblue;
+  border-radius: 6px;
+}
+header {
+  color: darkslategray;
+  font-family: courier;
+  font-size: 150%;
+}
+}
+</style>
+    <meta charset="utf-8">
+    <title>Horoscope Text Generation using CTRL Model</title>
+  </head>
+  <body>
+    <header>How to create a Horoscope using AI</header>
+    <main>
+    <p>This guide will show you how to generate text that look like Horoscope text in python.</p>
+    <img src='https://imgk.timesnownews.com/story/horoscope_todayy.jpg'></img>
+    <p>We will use the CTRL model from salesforce <a href="https://github.com/salesforce/ctrl">https://github.com/salesforce/ctrl</a> I suggest to read the github page becase the majority of the steps in this guide is identical to the guide in their website.</p>
+    <p class="blue">Scope: This guide will cover how to <b>run</b> the generation using CPU. If you want to run using GPU, or train the model with CPU or TPU, you feel free to try it yourself.</p>
+
+    <img src="images/ctrl.png"></img>
+
+    <p class="first">In my experience, I successfully train the model on a server with 64 logical cores and 128 GB of RAM. But, dont worry I trained on docker using between 8-32 CPUs at times and it used only about 27GB at the peak of the training process. I cannot train on a laptop with 24GB of ram.</p>
+
+    <p class="first">If you want to train using GPU, GPU with 24GB of memory of more might work, But I had tried GPU in the Google Collab Pro (16GB) with unsuccess result. If you run on CPU instance in collab pro with high memory (25 GB), it probabliy wont train too. On TPU instance with ~35GB of RAM may work, But I cannot confirm it. </p>
+
+    <p class="first">But, if you want to only run the model, It is relatively easy, you may only need collab not-pro (It may work if you crank the RAM to max), Or using the collab pro.</p>
+
+    <p class="first">But, again if you just want to try it and not has much money, also you do not want to risk your money purchasing collab pro or collab more-than-pro, Try to collect some RAM sticks around your house, You will need about 24-32 GB in total. The CPU core should not matter as long as you can wait when it generate text</p>
+
+    <p>The problem that you may find that is the CTRL model is the old code(about 3 years) and thus require an old version of Tensorflow (<i>version 1.14</i>) . You cannot run it on the version 2.X.X or newer, I have tried. As you have a computer with 24GB of ram or more and you have to make sure that you dont have any current project that use Tensorflow because you need to downgrade it to <i>version 1.14</i></p>
+
+    <p>Let's begin (You can also look at <i>salesforce/ctrl</i> github, because it is about the same)</p>
+    <p>Step Zero, you need to get the code, the code from the following <a href="https://github.com/ASR-NLP-2022/ctrl">https://github.com/ASR-NLP-2022/ctrl</a>. Try git clone it or just download as zip and then extract to the preferred destination.</p>
+    <p><b>First</b>, The code need some depandencies, mainly tesorflow (<i>version 1.14</i>) and fastbpe, Install them using pip. You may try using docker or virtualenv. (btw, using python2 not version 3 because the code is an old code, and tensorflow1.14 docker also use python version 2 )</p>
+
+    <p><b>Second</b>, if you plan to run the code from bare metal (not using docker), I suggest skipping this step, and try to generate the text first. It you may able to generate it without any problem.(You may experience a memory leak, which you need to reboot the computer). But if you want to patch the estimator you can run the command</p>
+    <p><div class="highlight">patch -b /usr/local/lib/python2.7/dist-packages/tensorflow_estimator/python/estimator/keras.py estimator.patch</div></p>
+
+    <p>Make sure that you are in the ctrl directory that you just cloned, or unzipped. The directory will have a estimator.patch file. Also check that the keras.py is in the /usr/local/lib/python2.7/dist-packages/tensorflow_estimator/python/estimator/ directory. Or you may have to change the command. And dont forget to back up it before patching. </p>
+
+    <p>Lets go to step Three, In the original guide, they said to use gsutil, but to install and use gsutil may be a hassle, (and also we will use the pre-trained Horoscope-based model) we will use the wget commands.</p>
+    <p>Make a directory (make a folder) called seqlen256_v1.ckpt (Yes, it has dot[.] in the directory name). In directory should be inside a project folder(In the same layer as the existing training_utils directory)</p>
+
+    <p><i>cd</i> to that (seqlen256_v1.ckpt) directory</p>
+
+    <p>In side that directory, you will need to get a total of 4 files, that is the model to run the generation</p>
+    <p class="first">The first file called <i>model.ckpt-413070.data-00000-of-00001</i> is the biggest file (~12.2GB)</p>
+    <p class="first">The second file called <i>model.ckpt-413070.meta</i> is the moderate size file (~503MB)</p>
+    <p class="first">The third file called <i>model.ckpt-413070.index</i> is the small-sized file (~63.1KiB)</p>
+    <p class="first">The last one called <i>checkpoint</i> which is the smallest of them all (~283B), it is a text file you can open with a text-editor or cat it</p>
+
+
+    <p>To download these files, run the following commands (one at a time) </p>
+
+    <p class="terminal">wget "https://drive.google.com/uc?id=1XCt8IVdIsO9mjHXT7-3FKLcsVFnFH4D8&export=download&confirm=t" -O model.ckpt-413070.data-00000-of-00001<br>
+wget "https://drive.google.com/uc?id=1zlG5ZcxiyJnt0Y1U5Y6qSFJfhgi7lWGf&export=download&confirm=t" -O model.ckpt-413070.meta<br>
+wget "https://drive.google.com/uc?id=1DTnwpD01sLtAgCfvCDe2aAt8grB0vMoE&export=download&confirm=t" -O model.ckpt-413070.index<br>
+wget "https://drive.google.com/uc?id=1lCff4pzcYprHVUL9A0xB2KlQn_k6l28y&export=download&confirm=t" -O checkpoint</p>
+
+    <p><b>Step 3.5</b> (optional) verify it</p>
+    <p>When you downloaded all the files but unsure that it is fully correct. Verify them using sha256sum. (sha256sum of very large file can take a long time) </p>
+    <p class="box">SHA256: <br>
+    <i>829ac539a013b6bcb62abb5f5bf046c5ddc57d20d2dc5d8690bdf41134d0fabf  model.ckpt-413070.data-00000-of-00001<br>
+    bc2b7d9eb9084b367c626efedff0ef480f5811640c1a6498dc5bd2d81136541d  model.ckpt-413070.meta<br>
+    a6033bd103b40e406f7f9dc2b96079090cd83e504b985c9e221a501f11c63191  model.ckpt-413070.index<br>
+    45bd4ee913349a8c31ebc57fb0bf52bbd9a948a685e4d61a2825db41e93a18ce  checkpoint</i></p>
+    </main>
+
+    <p>If you have trouble downloading the files, you can manually download them at <i class="highlight">https://drive.google.com/drive/folders/1tg0kvec0qBMP13Aa5Pyjp4WM23qOW15c?usp=sharing</i></p>
+
+    <p><b>Step 4</b>: after you download all four files, cd back to the root of the project directory (the folder that has generation.py in it), run the generation.py</p>
+    <p class="terminal">python generation.py --model_dir seqlen256_v1.ckpt/</p>
+    <p>Wait for model to load: after it loaded, enter the text such as <i class="light">Health You may</i></p>
+    <p>If you fogot how to run it or want to know about parameters that you can use, just run python generation.py, it will display a help massege.</p>
+    <p>That's it. Now you can be able to generate Horoscope text using the CTRL model.</p>
+    <p>The control code does not only have <i class="light">Health</i>, but also have <i class="light">Love</i> and <i class="light">Work</i></p>
+    <p>You can generate such as <i class="light">Love You may</i> or <i class="light">Work You will</i></p>
+    <footer></footer>
+  </body>
+</html>
